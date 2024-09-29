@@ -1,0 +1,11 @@
+{
+  "name": "web-interview",
+  "version": "1.0.0",
+  "description": "web前端面试题汇总",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "KID-1912",
+  "license": "ISC"
+}

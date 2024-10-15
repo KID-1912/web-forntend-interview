@@ -6,10 +6,10 @@ Vue实现了采用模板语法来声明式的将数据渲染为 DOM，本部分�
 
 # new Vue 发生了什么（初始化）
 
-`new Vue()` 即通过构造函数实例化一个类，注意到 `core/instace.js` 的构造函数内部代码：
+`new Vue()` 即通过构造函数实例化一个类，注意到 `core/instace/index.js` 的构造函数内部代码：
 
 ```js
-// src/core/instance.js
+// src/core/instance/index.js
 import { initMixin } from './init'
 // ......
 
@@ -189,7 +189,7 @@ export function mountComponent (
 
 另一个逻辑是创建渲染 Watcher，它有两个作用：一个是初始化的时候会执行回调函数，另一个是当 vm 实例中的监测的数据发生变化的时候执行回调函数，
 
-**总结**：`mountComponent` 方法的逻辑会完成整个渲染工作，其中包含关键方法`vm._render` 和 `vm._update`。
+**总结**：`mountComponent` 方法的逻辑会完成整个渲染工作，其中包含关键方法 `vm._render` 和 `vm._update`。
 
 # render
 
@@ -236,7 +236,7 @@ render: function (createElement) {
 
 `_render` 的调用是 `vnode = render.call(vm._renderProxy, vm.$createElement)`
 
-其中渲染函数多需要的 `vm.$createElement`，在 `Vue.prototype._render` 同一文件的 `initRender` 内初始化给实例：
+其中渲染函数所需要的 `vm.$createElement`，在 `Vue.prototype._render` 同一文件的 `initRender` 内初始化给实例：
 
 ```js
 export function initRender (vm: Component) {
@@ -341,5 +341,170 @@ export function _createElement (
 createElement的流程中，重点是 **`children` 的规范化**以及 **VNode 的创建**：
 
 ## children 的规范化
+
+Virtual DOM 实际上是一个树状结构，每一个 VNode 可能会有若干个子节点，这些子节点应该也是 VNode 的类型。`_createElement` 接收的第 4 个参数 children 是任意类型的，因此我们需要把它们规范成 VNode 类型。
+
+```js
+export function _createElement (
+  context: Component,
+  tag?: string | Class<Component> | Function | Object,
+  data?: VNodeData,
+  children?: any,
+  normalizationType?: number
+): VNode | Array<VNode> {
+  // ......
+  if (normalizationType === ALWAYS_NORMALIZE) {
+    children = normalizeChildren(children)
+  } else if (normalizationType === SIMPLE_NORMALIZE) {
+    children = simpleNormalizeChildren(children)
+  }
+  // ......
+}
+```
+
+这里根据 `normalizationType` 的不同，调用了 `normalizeChildren(children)` 和 `simpleNormalizeChildren(children)` 方法，它们的定义都在 `core/vdom/helpers/normalzie-children.js` 中：
+
+```js
+// src/core/vdom/helpers/normalzie-children.js
+export function simpleNormalizeChildren (children: any) {
+  for (let i = 0; i < children.length; i++) {
+    if (Array.isArray(children[i])) {
+      // 存在任意数组项，则打平数组
+      return Array.prototype.concat.apply([], children)
+    }
+  }
+  return children
+}
+export function normalizeChildren (children: any): ?Array<VNode> {
+  return isPrimitive(children)
+    ? [createTextVNode(children)]
+    : Array.isArray(children)
+      ? normalizeArrayChildren(children)
+      : undefined
+}
+```
+
+`normalizationType` 由 `$createElement` 和 `_c` 方法定义时传递给 `_createElement` 第4个参数决定；这区分了：
+
+`simpleNormalizeChildren` 方法调用场景是 `render` 函数是编译生成的。理论上编译生成的 `children` 都已经是 VNode 类型的，但这里有一个例外，就是 `functional component` 函数式组件返回的是一个数组而不是一个根节点，所以会通过 `Array.prototype.concat` 方法把整个 `children` 数组打平，让它的深度只有一层。
+
+`normalizeChildren` 方法的调用场景有 2 种，一个场景是 `render` 函数是用户手写的，当 `children` 只有一个节点的时候，Vue.js 从接口层面允许用户把 `children` 写成基础类型用来创建单个简单的文本节点，这种情况会调用 `createTextVNode` 创建一个文本节点的 VNode；另一个场景是当编译 `slot`、`v-for` 的时候会产生嵌套数组的情况，会调用 `normalizeArrayChildren` 方法：
+
+```js
+// src/core/vdom/helpers/normalzie-children.js
+// 主要处理：基础类型child转VNode，以及合并连续文本子节点的child
+function normalizeArrayChildren (children: any, nestedIndex?: string): Array<VNode> {
+  const res = []
+  let i, c, lastIndex, last
+  for (i = 0; i < children.length; i++) {
+    c = children[i]
+    lastIndex = res.length - 1
+    last = res[lastIndex]
+    //  nested
+    if (Array.isArray(c)) {
+      if (c.length > 0) {
+        c = normalizeArrayChildren(c, `${nestedIndex || ''}_${i}`)
+        // merge adjacent text nodes
+        if (isTextNode(c[0]) && isTextNode(last)) {
+          res[lastIndex] = createTextVNode(last.text + (c[0]: any).text)
+          c.shift()
+        }
+        res.push.apply(res, c)
+      }
+    } else if (isPrimitive(c)) {
+      if (isTextNode(last)) {
+        // merge adjacent text nodes
+        // this is necessary for SSR hydration because text nodes are
+        // essentially merged when rendered to HTML strings
+        res[lastIndex] = createTextVNode(last.text + c)
+      } else if (c !== '') {
+        // convert primitive to vnode
+        res.push(createTextVNode(c))
+      }
+    } else {
+      if (isTextNode(c) && isTextNode(last)) {
+        // merge adjacent text nodes
+        res[lastIndex] = createTextVNode(last.text + c.text)
+      } else {
+        // default key for nested array children (likely generated by v-for)
+        if (isTrue(children._isVList) &&
+          isDef(c.tag) &&
+          isUndef(c.key) &&
+          isDef(nestedIndex)) {
+          c.key = `__vlist${nestedIndex}_${i}__`
+        }
+        res.push(c)
+      }
+    }
+  }
+  return res
+}
+```
+
+`normalizeArrayChildren` 接收 2 个参数，`children` 表示要规范的子节点，`nestedIndex` 表示嵌套的索引，因为单个 `child` 可能是一个数组类型。 `normalizeArrayChildren` 主要的逻辑就是遍历 `children`，获得单个节点 `c`，然后对 `c` 的类型判断，
+
+如果是一个数组类型，则递归调用 `normalizeArrayChildren`; 
+
+如果是基础类型，则通过 `createTextVNode` 方法转换成 VNode 类型；
+
+否则就已经是 VNode 类型了，如果 `children` 是一个列表并且列表还存在嵌套的情况，则根据 `nestedIndex` 去更新它的 key。这里需要注意一点，在遍历的过程中，对这 3 种情况都做了如下处理：
+
+如果存在两个连续的 `text` 节点，会把它们合并成一个 `text` 节点。
+
+经过对 `children` 的规范化，`children` 变成了一个类型为 VNode 的 Array；
+
+## VNode的创建
+
+回到 `createElement` 函数，规范化 `children` 后，接下来会去创建一个 VNode 的实例：
+
+```js
+// src/core/vdom/create-element.js
+export function _createElement (
+  context: Component,
+  tag?: string | Class<Component> | Function | Object,
+  data?: VNodeData,
+  children?: any,
+  normalizationType?: number
+): VNode | Array<VNode> {
+  // ......
+  let vnode, ns
+  if (typeof tag === 'string') {
+    let Ctor
+    ns = (context.$vnode && context.$vnode.ns) || config.getTagNamespace(tag)
+    if (config.isReservedTag(tag)) {
+      vnode = new VNode(
+        config.parsePlatformTagName(tag), data, children,
+        undefined, undefined, context
+      )
+    } else if ((!data || !data.pre) && isDef(Ctor = resolveAsset(context.$options, 'components', tag))) {
+      // component
+      vnode = createComponent(Ctor, data, context, children, tag)
+    } else {
+      // unknown or unlisted namespaced elements
+      // check at runtime because it may get assigned a namespace when its
+      // parent normalizes children
+      vnode = new VNode(
+        tag, data, children,
+        undefined, undefined, context
+      )
+    }
+  } else {
+    // direct component options / constructor
+    vnode = createComponent(tag, data, context, children)
+  } 
+}
+```
+
+如果是 `string` 类型，则接着判断如果是内置的一些节点，则直接创建一个普通 VNode，
+
+如果是为已注册的组件名，则通过 `createComponent` 创建一个组件类型的 VNode，
+
+否则创建一个未知的标签的 VNode。 
+
+如果是 `tag` 一个 `Component` 类型，则直接调用 `createComponent` 创建一个组件类型的 VNode 节点。对于 `createComponent` 创建组件类型的 VNode 的过程，我们之后会去介绍，本质上它还是返回了一个 VNode。
+
+那么至此，我们大致了解了 `createElement` 创建 VNode 的过程，每个 VNode 有 `children`，`children` 每个元素也是一个 VNode，这样就形成了一个 VNode Tree，它很好的描述了我们的 DOM Tree。
+
+# update
 
 

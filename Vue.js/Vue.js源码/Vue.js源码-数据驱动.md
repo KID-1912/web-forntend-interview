@@ -507,4 +507,321 @@ export function _createElement (
 
 # update
 
+Vue 的 `_update` 是实例的一个私有方法，它被调用的时机有 2 个，一个是首次渲染，一个是数据更新的时候；`core/instance/lifecycle.js`：
 
+```js
+// src/core/instance/lifecycle.js
+export function lifecycleMixin (Vue: Class<Component>) {
+  Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) {
+    const vm: Component = this
+    const prevEl = vm.$el
+    const prevVnode = vm._vnode
+    const restoreActiveInstance = setActiveInstance(vm)
+    vm._vnode = vnode
+    // Vue.prototype.__patch__ is injected in entry points 定义在入口文件
+    // based on the rendering backend used.
+    if (!prevVnode) {
+      // initial render
+      vm.$el = vm.__patch__(vm.$el, vnode, hydrating, false /* removeOnly */)
+    } else {
+      // updates
+      vm.$el = vm.__patch__(prevVnode, vnode)
+    }
+    // ......
+  } 
+}
+```
+
+`_update` 的核心就是调用 `vm.__patch__` 方法，定义在各平台入口文件：
+
+```js
+// src/platforms/web/runtime/index.js
+import { patch } from './patch'  // src/platforms/web/runtime/patch.js
+// ......
+Vue.prototype.__patch__ = inBrowser ? patch : noop
+```
+
+甚至在 web 平台上，是否是服务端渲染也会对这个方法产生影响。因为在服务端渲染中，没有真实的浏览器 DOM 环境，所以不需要把 VNode 最终转换成 DOM，因此是一个空函数，而在浏览器端渲染中，它指向了 `patch` 方法，它的定义在 `platforms/web/runtime/patch.js` 中：
+
+```js
+// src/platforms/web/runtime/patch.js
+import { createPatchFunction } from 'core/vdom/patch'
+import baseModules from 'core/vdom/modules/index'
+import platformModules from 'web/runtime/modules/index'
+
+const modules = platformModules.concat(baseModules)
+export const patch: Function = createPatchFunction({ nodeOps, modules })
+```
+
+调用 `createPatchFunction` 方法的返回值，这里传入了一个对象，包含 `nodeOps` 参数和 `modules` 参数。其中：
+
+`nodeOps` 封装了一系列 DOM 操作的方法；
+
+`modules` 定义了一些模块的钩子函数的实现；
+
+查看 `createPatchFunction` 实现：
+
+```js
+// src/core/vdom/patch.js
+export function createPatchFunction (backend) { 
+  function createElm
+  function createComponent
+  function initComponent
+  function reactivateComponent
+  function insert
+  function createChildren
+  function isPatchable
+  function invokeCreateHooks
+  function setScope
+  function addVnodes
+  function invokeDestroyHook
+  function removeVnodes
+  function removeAndInvokeRemoveHook
+  function updateChildren
+  function checkDuplicateKeys
+  function findIdxInOld
+  function patchVnode
+  function invokeInsertHook
+  function hydrate
+  function assertNodeMatch
+  return function patch (oldVnode, vnode, hydrating, removeOnly) {
+    // ......
+  }
+}
+```
+
+`createPatchFunction` 内部定义了一系列的辅助方法，最终返回了一个 `patch` 方法，这个方法就赋值给了 `vm._update` 函数里调用的 `vm.__patch__`。
+
+为何 Vue.js 源码绕了这么一大圈，把相关代码分散到各个目录。因为前面介绍过，`patch` 是平台相关的，在 Web 和 Weex 环境，它们把虚拟 DOM 映射到 “平台 DOM” 的方法是不同的，并且对 “DOM” 包括的属性模块创建和更新也不尽相同。因此每个平台都有各自的 `nodeOps` 和 `modules`，它们的代码需要托管在 `src/platforms` 这个大目录下。
+
+而不同平台的 `patch` 的主要逻辑部分是相同的，所以这部分公共的部分托管在 `core` 这个大目录下。差异化部分只需要通过参数来区别，这里用到了一个函数柯里化的技巧，通过 `createPatchFunction` 把差异化参数提前固化，这样不用每次调用 `patch` 的时候都传递 `nodeOps` 和 `modules` 了，这种编程技巧也非常值得学习。
+
+## patch
+
+通过update（更新视图）是基于 patch 方法比对，例如：
+
+```js
+var app = new Vue({
+  el: '#app',
+  render: function (createElement) {
+    return createElement('div', {
+      attrs: {
+        id: 'app'
+      },
+    }, this.message)
+  },
+  data: {
+    message: 'Hello Vue!'
+  }
+})
+```
+
+`vm._update` 调用 `patch` 如下：
+
+```js
+// initial render
+vm.$el = vm.__patch__(vm.$el, vnode, hydrating, false /* removeOnly */)
+```
+
+回到 `patch` 方法本身，它接收 4个参数：
+
+`oldVnode` 表示旧的 VNode 节点，它也可以不存在或者是一个 DOM 对象；这里是我们在 index.html 模板中写的 `<div id="app">`
+
+`vnode` 表示执行 `_render` 后返回的 VNode 的节点；
+
+`hydrating` 表示是否是服务端渲染；
+
+`removeOnly` 是给 `transition-group` 用的，
+
+```js
+// src/core/vdom/patch.js
+export function createPatchFunction (backend) {
+  // ......
+  return function patch (oldVnode, vnode, hydrating, removeOnly) {\
+    // .....
+    let isInitialPatch = false
+    const insertedVnodeQueue = []
+
+    if (isUndef(oldVnode)) {
+      // empty mount (likely as component), create new root element
+      isInitialPatch = true
+      createElm(vnode, insertedVnodeQueue)
+    } else {
+      const isRealElement = isDef(oldVnode.nodeType)
+      if (!isRealElement && sameVnode(oldVnode, vnode)) {
+        // patch existing root node：patch已存在的vnode根节点
+        patchVnode(oldVnode, vnode, insertedVnodeQueue, null, null, removeOnly)
+      } else {
+        if (isRealElement) {
+          if (oldVnode.nodeType === 1 && oldVnode.hasAttribute(SSR_ATTR)) {
+            oldVnode.removeAttribute(SSR_ATTR)
+            hydrating = true
+          }
+          // ......
+          oldVnode = emptyNodeAt(oldVnode)  // 将element转为emptyNode
+        }
+
+        // replacing existing element
+        const oldElm = oldVnode.elm
+        const parentElm = nodeOps.parentNode(oldElm)
+
+        // create new node
+        createElm(
+          vnode,
+          insertedVnodeQueue,
+          oldElm._leaveCb ? null : parentElm,
+          nodeOps.nextSibling(oldElm)
+        )
+        // ......
+      }
+    }
+    // 
+    invokeInsertHook(vnode, insertedVnodeQueue, isInitialPatch)
+    return vnode.elm
+  }
+}
+```
+
+我们传入的 `oldVnode` 实际上是一个 DOM container，所以 `isRealElement` 为 true，接下来又通过 `emptyNodeAt` 方法把 `oldVnode` 转换成 `VNode` 对象，然后再调用 `createElm` 方法：
+
+```js
+// src/core/vdom/patch.js
+  function createElm (
+    vnode,
+    insertedVnodeQueue,
+    parentElm,
+    refElm,
+    nested,
+    ownerArray,
+    index
+  ) {
+    // ......
+    vnode.isRootInsert = !nested // for transition enter check
+    // 去创建组件
+    if (createComponent(vnode, insertedVnodeQueue, parentElm, refElm)) {
+      return
+    }
+
+    const data = vnode.data
+    const children = vnode.children
+    const tag = vnode.tag
+    if (isDef(tag)) {
+      // ......
+      // 占位符元素
+      vnode.elm = vnode.ns
+        ? nodeOps.createElementNS(vnode.ns, tag)
+        : nodeOps.createElement(tag, vnode)
+      setScope(vnode)
+
+      /* istanbul ignore if */
+      if (__WEEX__) {
+        // ......
+      } else {
+        createChildren(vnode, children, insertedVnodeQueue)
+        if (isDef(data)) {
+          invokeCreateHooks(vnode, insertedVnodeQueue)
+        }
+        insert(parentElm, vnode.elm, refElm)
+      }
+      // ......
+    } else if (isTrue(vnode.isComment)) {
+      vnode.elm = nodeOps.createComment(vnode.text)
+      insert(parentElm, vnode.elm, refElm)
+    } else {
+      vnode.elm = nodeOps.createTextNode(vnode.text)
+      insert(parentElm, vnode.elm, refElm)
+    }
+  }
+```
+
+判断 `vnode` 是否包含 tag，去调用平台 DOM 的操作去创建一个占位符元素
+
+```js
+vnode.elm = vnode.ns
+  ? nodeOps.createElementNS(vnode.ns, tag)
+  : nodeOps.createElement(tag, vnode)
+```
+
+调用 `createChildren` 方法去创建子元素：
+
+```js
+// src/core/vdom/patch.js
+createChildren(vnode, children, insertedVnodeQueue)
+
+function createChildren (vnode, children, insertedVnodeQueue) {
+  if (Array.isArray(children)) {
+    if (process.env.NODE_ENV !== 'production') {
+      checkDuplicateKeys(children)
+    }
+    for (let i = 0; i < children.length; ++i) {
+      createElm(children[i], insertedVnodeQueue, vnode.elm, null, true, children, i)
+    }
+  } else if (isPrimitive(vnode.text)) {
+    nodeOps.appendChild(vnode.elm, nodeOps.createTextNode(String(vnode.text)))
+  }
+}
+```
+
+接着再调用 `invokeCreateHooks` 方法执行所有的 create 的钩子并把 `vnode` push 到 `insertedVnodeQueue` 中。
+
+```js
+// src/core/vdom/patch.js
+if (isDef(data)) {
+  invokeCreateHooks(vnode, insertedVnodeQueue)
+}
+
+function invokeCreateHooks (vnode, insertedVnodeQueue) {
+  for (let i = 0; i < cbs.create.length; ++i) {
+    cbs.create[i](emptyNode, vnode)
+  }
+  i = vnode.data.hook // Reuse variable
+  if (isDef(i)) {
+    if (isDef(i.create)) i.create(emptyNode, vnode)
+    if (isDef(i.insert)) insertedVnodeQueue.push(vnode)
+  }
+}
+```
+
+最后调用 `insert` 方法把 `DOM` 插入到父节点中，因为是递归调用，子元素会优先调用 `insert`，所以整个 `vnode` 树节点的插入顺序是先子后父。来看一下 `insert` 方法，它的定义在 `src/core/vdom/patch.js` 上。
+
+```js
+insert(parentElm, vnode.elm, refElm)
+
+function insert (parent, elm, ref) {
+  if (isDef(parent)) {
+    if (isDef(ref)) {
+      if (ref.parentNode === parent) {
+        nodeOps.insertBefore(parent, elm, ref)
+      }
+    } else {
+      nodeOps.appendChild(parent, elm)
+    }
+  }
+}
+```
+
+在 `createElm` 过程中，如果 `vnode` 节点不包含 `tag`，则它有可能是一个注释或者纯文本节点，可以直接插入到父元素中。在我们这个例子中，最内层就是一个文本 `vnode`，它的 `text` 值取的就是之前的 `this.message` 的值 `Hello Vue!`。
+
+再回到 `patch` 方法，首次渲染我们调用了 `createElm` 方法，这里传入的 `parentElm` 是 `oldVnode.elm` 的父元素，在我们的例子是 id 为 `#app` div 的父元素，也就是 Body；实际上整个过程就是递归创建了一个完整的 DOM 树并插入到 Body 上。
+
+最后，我们根据之前递归 `createElm` 生成的 `vnode` 插入顺序队列，执行相关的 `insert` 钩子函数；
+
+# 总结
+
+至此我们从主线上把模板和数据如何渲染成最终的 DOM 的过程分析完毕了，我们可以通过下图更直观地看到从初始化 Vue 到最终渲染的整个过程。
+
+![](https://raw.githubusercontent.com/KID-1912/Github-PicGo-Images/master/2024/10/16/20241016161014.png)
+
+我们这里只是分析了最简单和最基础的场景，在实际项目中，我们是把页面拆成很多组件的，Vue 另一个核心思想就是组件化。那么下一章我们就来分析 Vue 的组件化过程。
+
+**初始化和挂载**
+
+`init` => platform各入口文件 `Vue.prototype.$mount` 重新定义（为了加上编译逻辑） => platform各平台runtime下  `Vue.prototype.$mount` 定义=>  lifeCycle的`mountComponnent` => `vm._render` 和 `vm._update`
+
+**render**
+
+ `vm._render` => `vm.$createElement` => vdom下 `createElement` 返回VNode
+
+**update**
+
+`vm._update` => platforms下定义的 `Vue.prototype.patch` => vdom/patch.js的`createPatchFunction` 返回的`patch` => `createPatchFunction` 内 `createElm` => 插入所有元素

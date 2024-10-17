@@ -139,8 +139,6 @@ let result2 = it.next()
 let result3 = it.next()
 ```
 
-
-
 ## Promise
 
 **Promise** 三种状态：
@@ -148,3 +146,5 @@ let result3 = it.next()
 1. 等待中（pending）
 2. 完成了 （resolved）
 3. 拒绝了（rejected）
+
+**手写promise**

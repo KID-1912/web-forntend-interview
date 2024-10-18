@@ -44,7 +44,7 @@ isNaN、isArray
 
 **浅拷贝**：`Object.assign`、`...展开运算符`
 
-**深拷贝**：`JSON.parse(JSON.stringify(obj))`，但存在循环引用，以及函数、Symbol、undefined这些类型会被忽略
+**深拷贝**：`JSON.parse(JSON.stringify(obj))`，但存在循环引用，以及函数、Symbol、undefined 这些类型会被忽略
 
 **手写深拷贝**
 
@@ -52,11 +52,11 @@ isNaN、isArray
 
 ## var、let 及 const
 
-**声明提升**：这也是let、const不允许声明前就使用变量，会报错
+**声明提升**：这也是 let、const 不允许声明前就使用变量，会报错
 
 **块级作用域**
 
-## 原型继承/Class继承
+## 原型继承/Class 继承
 
 常见的继承方式：
 
@@ -64,7 +64,7 @@ isNaN、isArray
 
 `Con.prototype = new SupType()` + `SupType.call(this)`
 
-**寄生组合式** 
+**寄生组合式**
 
 ```js
 // Con.prototype = new SupType() 替换为
@@ -73,18 +73,18 @@ Child.prototype = Object.create(Parent.prototype, {
     value: Child,
     enumerable: false,
     writable: true,
-    configurable: true
-  }
-})
+    configurable: true,
+  },
+});
 ```
 
-**Class继承**：`super` + `extends`
+**Class 继承**：`super` + `extends`
 
 ## 模块化
 
 **立即执行函数**
 
-**CommonJS**：本质是require时，对模块使用立即执行函数包装一层返回值
+**CommonJS**：本质是 require 时，对模块使用立即执行函数包装一层返回值
 
 **ES Module**
 
@@ -92,17 +92,17 @@ Child.prototype = Object.create(Parent.prototype, {
 
 `let p = new Proxy(target, handler)`
 
-`target` 代表需要添加代理的对象，`handler` 用来自定义对象中的操作，比如可以用来自定义 `set` 或者 `get` 函数。
+`target`  代表需要添加代理的对象，`handler`  用来自定义对象中的操作，比如可以用来自定义  `set`  或者  `get`  函数。
 
- Vue3.0 要使用 `Proxy` 替换原本的 API 原因在于 `Proxy` 无需递归为每个属性添加代理，性能上更好；并且原本的实现有一些数据更新不能监听到（数组下标方式设置值），但是 `Proxy` 可以完美监听到任何方式的数据改变；
+Vue3.0 要使用  `Proxy`  替换原本的 API 原因在于  `Proxy`  无需递归为每个属性添加代理，性能上更好；并且原本的实现有一些数据更新不能监听到（数组下标方式设置值），但是  `Proxy`  可以完美监听到任何方式的数据改变；
 
 # Object、Map、WeakMap
 
-Object 的 `key` 只能为 `string` 或者 `symbol` 类型；
+Object 的  `key`  只能为  `string`  或者  `symbol`  类型；
 
-Map 的 `key` 接受任意类型；
+Map 的  `key`  接受任意类型；
 
-WeakMap 的 `key` 只能为 `object` 类型；
+WeakMap 的  `key`  只能为  `object`  类型；
 
 # 异步编程
 
@@ -120,23 +120,23 @@ WeakMap 的 `key` 只能为 `object` 类型；
 
 除此之外，回调函数还存在缺点：
 
-- 不能使用 `try catch` 捕获错误
-- 不能直接 `return`
+- 不能使用  `try catch`  捕获错误
+- 不能直接  `return`
 
 ## Generator
 
 它最大的特点就是可以控制函数的执行；
 
 ```js
-function *fetch() {
-    yield ajax(url, () => {})
-    yield ajax(url1, () => {})
-    yield ajax(url2, () => {})
+function* fetch() {
+  yield ajax(url, () => {});
+  yield ajax(url1, () => {});
+  yield ajax(url2, () => {});
 }
-let it = fetch()
-let result1 = it.next()
-let result2 = it.next()
-let result3 = it.next()
+let it = fetch();
+let result1 = it.next();
+let result2 = it.next();
+let result3 = it.next();
 ```
 
 ## Promise
@@ -147,4 +147,14 @@ let result3 = it.next()
 2. 完成了 （resolved）
 3. 拒绝了（rejected）
 
-**手写promise**
+**手写 promise**
+
+**实现**：Promise 类、promise 状态、resolve、reject、then、catch、finally
+
+**注意点**：
+
+then 函数支持传入 2 个参数，分别为 `fulfilled/rejected` 时执行，支持链式调用，支持 Promise 完成后追加处理；
+
+then 函数返回一个新 Promise，若传入的函数并没有返回值则将 undefined 作为下一个 Promise 的 data；
+
+若传入的函数返回值是一个普通值（非 Promise），则将这个值作为下一个 Promise 的 data；

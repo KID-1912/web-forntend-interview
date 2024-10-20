@@ -6,8 +6,8 @@
 
 ```
 src
-├── compiler        # 编译相关 
-├── core            # 核心代码 
+├── compiler        # 编译相关
+├── core            # 核心代码
 ├── platforms       # 不同平台的支持
 ├── server          # 服务端渲染
 ├── sfc             # .vue 文件解析
@@ -244,8 +244,6 @@ export function initGlobalAPI (Vue: GlobalAPI) {
   initExtend(Vue)
   initAssetRegisters(Vue)
 }
-
-
 ```
 
 可以看到 initGlobalAPI 是对 Vue 上扩展的一些全局方法的定义，如官网中关于全局 API `config`， `set`，`del` 等都在这里；

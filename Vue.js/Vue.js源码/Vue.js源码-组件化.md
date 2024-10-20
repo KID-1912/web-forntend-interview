@@ -430,7 +430,7 @@ Vue.prototype._render = function (): VNode {
   const vm: Component = this
   const { render, _parentVnode } = vm.$options
 
-  
+
   // set parent vnode. this allows render functions to have access
   // to the data on the placeholder node.
   vm.$vnode = _parentVnode
@@ -534,7 +534,7 @@ export function initLifecycle (vm: Component) {
 
 ```js
 vm.$el = vm.__patch__(vm.$el, vnode, hydrating, false /* removeOnly */)
- 
+
 function patch (oldVnode, vnode, hydrating, removeOnly) {
   // ...
   let isInitialPatch = false
@@ -1084,5 +1084,3 @@ const AsyncComp = () => ({
 })
 Vue.component('async-example', AsyncComp)
 ```
-
-

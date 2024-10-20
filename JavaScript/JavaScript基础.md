@@ -158,3 +158,31 @@ then 函数支持传入 2 个参数，分别为 `fulfilled/rejected` 时执行�
 then 函数返回一个新 Promise，若传入的函数并没有返回值则将 undefined 作为下一个 Promise 的 data；
 
 若传入的函数返回值是一个普通值（非 Promise），则将这个值作为下一个 Promise 的 data；
+
+# Event Loop事件循环
+
+## 线程与进程
+
+线程，进程；本质上来说，都是 CPU **工作时间片**的一个描述；
+
+进程描述了 CPU 在 **运行指令及加载和保存上下文所需的时间**
+
+线程是进程中的更小单位，描述了执行一段指令所需的时间。
+
+你打开一个 Tab 页时，其实就是创建了一个进程，一个进程中可以有多个线程，比如渲染线程、JS 引擎线程、HTTP 请求线程等等。当你发起一个请求时，其实就是创建了一个线程，当请求结束后，该线程可能就会被销毁。
+
+## 执行栈与任务队列
+
+**执行栈**：一个遵循先进后出的存储函数调用的结构
+
+**任务队列**：通过任务队列实现任务的异步执行；
+
+不同的任务源会被分配到不同的 Task 队列中，任务源可以分为 **微任务**（microtask） 和 **宏任务**（macrotask）。在 ES6 规范中，microtask 称为 `jobs`，macrotask 称为 `task`。
+
+## 微任务
+
+微任务包括 `process.nextTick` 、`queueMicrotask`、`promise.then` 、`MutationObserver`，其中 `process.nextTick` 为 Node 独有。
+
+## 宏任务
+
+宏任务包括 `script` 、 `setTimeout` 、`setInterval` 、`setImmediate` 、`I/O` 及 `UI rendering`。

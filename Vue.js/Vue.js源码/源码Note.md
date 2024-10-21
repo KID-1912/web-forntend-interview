@@ -43,3 +43,13 @@ core核心代码，内部可划分各部分逻辑，如
 ## 函数实现支持多场景的参数
 
 借助**函数柯里化**，通过 `createXxxxFunction` 把差异化参数提前固化，就不用每次调用 `Xxxx` 传递区别场景的参数；
+
+observe：数据观测方法：为一个对象的每个属性创建一个 **`Observer`** 实例，监控数据变化
+
+Observer：数据观察者，被观察的数据上Observer实例；
+
+defineReactive：负责将对象的某个属性定义为响应式的。一个 **`Dep`** 实例，管理依赖；它通过 `Object.defineProperty` 来拦截对象属性的访问和修改操作，实现依赖收集和更新通知。
+
+Dep：依赖管理器
+
+Watcher：依赖观察者/订阅者

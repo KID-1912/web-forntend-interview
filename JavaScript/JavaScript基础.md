@@ -181,7 +181,7 @@ then 函数返回一个新 Promise，若传入的函数并没有返回值则将 
 
 ## 微任务
 
-微任务包括 `process.nextTick` 、`queueMicrotask`、`promise.then` 、`MutationObserver`，其中 `process.nextTick` 为 Node 独有。
+微任务包括 `process.nextTick` 、`queueMicrotask`（一个 Web API，用于将一个回调函数加入微任务队列）、`promise.then` 、`MutationObserver`，其中 `process.nextTick` 为 Node 独有。
 
 ## 宏任务
 

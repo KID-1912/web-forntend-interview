@@ -25,7 +25,7 @@ function initComputed (vm: Component, computed: Object) {
       // create internal watcher for the computed property.
       watchers[key] = new Watcher(
         vm,
-        getter || noop,
+        getter || noop, // watcher.get()将会调用
         noop,
         computedWatcherOptions
       )
@@ -35,7 +35,7 @@ function initComputed (vm: Component, computed: Object) {
     // component prototype. We only need to define computed properties defined
     // at instantiation here.
     if (!(key in vm)) {
-      defineComputed(vm, key, userDef)
+      defineComputed(vm, key, userDef) // 设置prop到vm
     } else if (process.env.NODE_ENV !== 'production') {
       if (key in vm.$data) {
         warn(`The computed property "${key}" is already defined in data.`, vm)
@@ -101,11 +101,11 @@ function createComputedGetter (key) {
   return function computedGetter () {
     const watcher = this._computedWatchers && this._computedWatchers[key]
     if (watcher) {
-      if (watcher.dirty) {
-        watcher.evaluate()
+      if (watcher.dirty) { // 初始化时dirty=lazy=true
+        watcher.evaluate() // 此次访问更新视图
       }
       if (Dep.target) {
-        watcher.depend()
+        watcher.depend() // 依赖到内部访问vm 属性的 dep
       }
       return watcher.value
     }
@@ -158,22 +158,26 @@ constructor (
 
 可以发现 `computed watcher` 会并不会立刻求值收集依赖，同时持有一个 `dep` 实例。
 
-然后当我们的 `render` 函数执行访问到 `this.fullName` 的时候，就触发了计算属性的 `getter`，它会拿到计算属性对应的 `watcher`，然后执行 `watcher.depend()`，来看一下它的定义：
+然后当我们的 `render` 函数执行访问到 `this.fullName` 的时候，就触发了计算属性的 `getter`：
 
 ```js
-/**
-  * Depend on this watcher. Only for computed property watchers.
-  */
-depend () {
-  if (this.dep && Dep.target) {
-    this.dep.depend()
+function createComputedGetter (key) {
+  return function computedGetter () {
+    const watcher = this._computedWatchers && this._computedWatchers[key]
+    if (watcher) {
+      if (watcher.dirty) { // 初始化时dirty=lazy=true
+        watcher.evaluate() // 此次访问将更新视图
+      }
+      if (Dep.target) {
+        watcher.depend() // 依赖到内部访问vm 属性的 dep
+      }
+      return watcher.value
+    }
   }
 }
 ```
 
-注意，这时候的 `Dep.target` 是渲染 `watcher`，所以 `this.dep.depend()` 相当于渲染 `watcher` 订阅了这个 `computed watcher` 的变化。
-
-然后再执行 `watcher.evaluate()` 去求值，来看一下它的定义：
+它会拿到计算属性对应的 `watcher`，会先执行 `watcher.evaluate()` 去求值，来看一下它的定义：
 
 ```js
 /**
@@ -182,7 +186,7 @@ depend () {
   */
 evaluate () {
   if (this.dirty) {
-    this.value = this.get()
+    this.value = this.get() // 此时Dep.target被修改
     this.dirty = false
   }
   return this.value
@@ -191,7 +195,22 @@ evaluate () {
 
 `evaluate` 的逻辑非常简单，判断 `this.dirty`，如果为 `true` 则通过 `this.get()` 求值，然后把 `this.dirty` 设置为 false。在求值过程中，会执行 `value = this.getter.call(vm, vm)`，这实际上就是执行了计算属性定义的 `getter` 函数，在我们这个例子就是执行了 `return this.firstName + ' ' + this.lastName`。
 
-最后通过 `return this.value` 拿到计算属性对应的值。我们知道了计算属性的求值过程，那么接下来看一下它依赖的数据变化后的逻辑。
+最后通过 `return this.value` 拿到计算属性对应的值。然后执行 `watcher.depend()`，来看一下它的定义：
+
+```js
+/**
+  * Depend on this watcher. Only for computed property watchers.
+  */
+depend () {
+  if (this.dep && Dep.target) {
+    this.dep.depend() // 由于 上一步get后会cleanupDeps
+  }
+}
+```
+
+注意，这时候的 `Dep.target` 是渲染 `watcher`，所以 `this.dep.depend()` 相当于渲染 `watcher` 订阅了这个 `computed watcher` 的变化。
+
+我们知道了计算属性的求值过程，那么接下来看一下它依赖的数据变化后的逻辑。
 
 一旦我们对计算属性依赖的数据做修改，则会触发 setter 过程，通知所有订阅它变化的 `watcher` 更新，执行 `watcher.update()` 方法：
 
@@ -240,3 +259,15 @@ evaluate () {
 ```
 
 通过以上的分析，我们知道计算属性本质上就是一个 `computed watcher`，也了解了它的创建过程和被访问触发 getter 以及依赖更新的过程，其实这是最新的计算属性的实现，之所以这么设计是因为 Vue 想确保不仅仅是计算属性依赖的值发生变化，而是当计算属性最终计算的值发生变化才会触发渲染 `watcher` 重新渲染，本质上是一种优化。
+
+**个人总结**
+
+声明计算属性，本质上是通过watcher实现的；但是是一个特殊的computed watcher；
+
+其不同之处在于2个惰性求值：
+
+- 依赖追踪：不同于一般watcher创建时会立即对其get求值收集依赖，而是在首次访问时去计算所依赖的响应式数据，即你声明的get；且渲染watcher订阅computed watcher变化（自动收集依赖，避免重复计算）
+
+- 惰性求值：`computed watcher` 并不会在依赖的数据发生变化时立即求值，而是会将自己标记为“脏”（`dirty = true`）,在下次访问计算属性时， 才会通过调用 `evaluate()` 来重新计算计算属性的值；
+
+- 最终值变化：默认Vue 会比较计算属性的新值和旧值。如果值发生了变化，才会触发渲染 `watcher`，让 Vue 重新渲染依赖此计算属性的视图。这就保证了只有在 **计算属性的最终值** 发生变化时，才会触发依赖它的渲染 `watcher` 进行更新，

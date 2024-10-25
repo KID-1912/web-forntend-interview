@@ -349,7 +349,7 @@ export function stateMixin (Vue: Class<Component>) {
     }
     options = options || {}
     options.user = true
-    const watcher = new Watcher(vm, expOrFn, cb, options)
+    const watcher = new Watcher(vm, expOrFn, cb, options) // expOrFn即如何求值getter并收集依赖
     if (options.immediate) {
       try {
         cb.call(vm, watcher.value)
@@ -369,3 +369,384 @@ export function stateMixin (Vue: Class<Component>) {
 接着执行 `const watcher = new Watcher(vm, expOrFn, cb, options)` 实例化了一个 `watcher`，这里需要注意一点这是一个 `user watcher`，因为 `options.user = true`。通过实例化 `watcher` 的方式，一旦我们 `watch` 的数据发送变化，它最终会执行 `watcher` 的 `run` 方法，执行回调函数 `cb`，并且如果我们设置了 `immediate` 为 true，则直接会执行回调函数 `cb`。最后返回了一个 `unwatchFn` 方法，它会调用 `teardown` 方法去移除这个 `watcher`。
 
 所以本质上侦听属性也是基于 `Watcher` 实现的，它是一个 `user watcher`。其实 `Watcher` 支持了不同的类型，下面我们梳理一下它有哪些类型以及它们的作用；
+
+## Watcher options
+
+`Watcher` 的构造函数对 `options` 做的了处理，代码如下：
+
+```js
+if (options) {
+  this.deep = !!options.deep
+  this.user = !!options.user
+  this.lazy = !!options.lazy
+  this.sync = !!options.sync
+  // ...
+} else {
+  this.deep = this.user = this.computed = this.sync = false
+}
+```
+
+所以 `watcher` 总共有 4 种类型，我们来一一分析它们，看看不同的类型执行的逻辑有哪些差别。
+
+**deep watcher**
+
+通常，如果我们想对一下对象做深度观测的时候，需要设置这个属性为 true，考虑到这种情况：
+
+```js
+var vm = new Vue({
+  data() {
+    a: {
+      b: 1
+    }
+  },
+  watch: {
+    a: {
+      handler(newVal) {
+        console.log(newVal)
+      }
+    }
+  }
+})
+vm.a.b = 2
+```
+
+这个时候是不会 log 任何数据的，因为我们是 watch 了 `a` 对象，只触发了 `a` 的 getter，并没有触发 `a.b` 的 getter，所以并没有订阅它的变化，导致我们对 `vm.a.b = 2` 赋值的时候，虽然触发了 setter，但没有可通知的对象，所以也并不会触发 watch 的回调函数了。
+
+```js
+watch: {
+  a: {
+    deep: true,
+    handler(newVal) {
+      console.log(newVal)
+    }
+  }
+}
+```
+
+这样就创建了一个 `deep watcher` 了，在 `watcher` 执行 `get` 求值的过程中有一段逻辑：
+
+```js
+get() {
+  let value = this.getter.call(vm, vm)
+  // ...
+  if (this.deep) {
+    traverse(value)
+  }
+}
+```
+
+在对 watch 的表达式或者函数求值后，会调用 `traverse` （穿透）函数，它的定义在 `core/observer/traverse.js` 中：
+
+```js
+import { _Set as Set, isObject } from '../util/index'
+import type { SimpleSet } from '../util/index'
+import VNode from '../vdom/vnode'
+
+const seenObjects = new Set()
+
+/**
+ * Recursively traverse an object to evoke all converted
+ * getters, so that every nested property inside the object
+ * is collected as a "deep" dependency.
+ */
+export function traverse (val: any) {
+  _traverse(val, seenObjects)
+  seenObjects.clear()
+}
+
+function _traverse (val: any, seen: SimpleSet) {
+  let i, keys
+  const isA = Array.isArray(val)
+  if ((!isA && !isObject(val)) || Object.isFrozen(val) || val instanceof VNode) {
+    return
+  }
+  if (val.__ob__) {
+    const depId = val.__ob__.dep.id
+    if (seen.has(depId)) {
+      return
+    }
+    seen.add(depId)
+  }
+  if (isA) {
+    i = val.length
+    while (i--) _traverse(val[i], seen)
+  } else {
+    keys = Object.keys(val)
+    i = keys.length
+    while (i--) _traverse(val[keys[i]], seen)
+  }
+}
+```
+
+`traverse` 的逻辑也很简单，它实际上就是对一个对象做深层递归遍历，因为遍历过程中就是对一个子对象的访问，会触发它们的 getter 过程，这样就可以收集到依赖，也就是订阅它们变化的 `watcher`，这个函数实现还有一个小的优化，遍历过程中会把子响应式对象通过它们的 `dep id` 记录到 `seenObjects`，避免以后重复访问。
+
+那么在执行了 `traverse` 后，我们再对 watch 的对象内部任何一个值做修改，也会调用 `watcher` 的回调函数了。
+
+**user watcher**
+
+前面我们分析过，通过 `vm.$watch` 创建的 `watcher` 是一个 `user watcher`，其实它的功能很简单，在对 `watcher` 求值以及在执行回调函数的时候，会处理一下错误，如下：
+
+```js
+get () {
+    pushTarget(this)
+    try {
+      value = this.getter.call(vm, vm)
+    } catch (e) {
+      if (this.user) {
+        handleError(e, vm, `getter for watcher "${this.expression}"`)
+      } else {
+        throw e
+      }
+    } finally {
+    }
+    return value
+  }
+```
+
+##computed watcher
+
+`computed watcher` 几乎就是为计算属性量身定制的，我们刚才已经对它做了详细的分析，这里不再赘述了。（为计算而生，惰性求值）
+
+sync watcher
+
+在我们之前对 `setter` 的分析过程知道，当响应式数据发送变化后，触发了 `watcher.update()`，只是把这个 `watcher` 推送到一个队列中，在 `nextTick` 后才会真正执行 `watcher` 的回调函数。而一旦我们设置了 `sync`，就可以在当前 `Tick` 中同步执行 `watcher` 的回调函数。
+
+```js
+update () {
+  if (this.computed) {
+    // ...
+  } else if (this.sync) {
+    this.run()
+  } else {
+    queueWatcher(this)
+  }
+}
+```
+
+只有当我们需要 watch 的值的变化到执行 `watcher` 的回调函数是一个同步过程的时候才会去设置该属性为 true。
+
+**总结**
+
+通过这一小节的分析我们对计算属性和侦听属性的实现有了深入的了解，计算属性本质上是 `computed watcher`，而侦听属性本质上是 `user watcher`。就应用场景而言，计算属性适合用在模板渲染中，某个值是依赖了其它的响应式对象甚至是计算属性计算而来；而侦听属性适用于观测某个值的变化去完成一段复杂的业务逻辑。
+
+同时我们又了解了 `watcher` 的 4 个 `options`，通常我们会在创建 `user watcher` 的时候配置 `deep` 和 `sync`，可以根据不同的场景做相应的配置。
+
+# 组件更新
+
+在组件化章节，我们介绍了 Vue 的组件化实现过程，不过我们只讲了 Vue 组件的创建过程，并没有涉及到组件数据发生变化，更新组件的过程。而通过我们这一章对数据响应式原理的分析，了解到当数据发生变化的时候，会触发渲染 `watcher` 的回调函数，进而执行组件的更新过程，接下来我们来详细分析这一过程。
+
+```js
+// /core/instance/lifecycle.js
+  // ......
+  } else {
+    updateComponent = () => {
+      vm._update(vm._render(), hydrating)
+    }
+  }
+  new Watcher(vm, updateComponent, noop, {
+    before () {
+      if (vm._isMounted && !vm._isDestroyed) {
+        callHook(vm, 'beforeUpdate')
+      }
+    }
+  }, true /* isRenderWatcher */)
+```
+
+组件的更新还是调用了 `vm._update` 方法，我们再回顾一下这个方法，它的定义在 `core/instance/lifecycle.js` 中：
+
+```js
+Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) {
+  const vm: Component = this
+  // ...
+  const prevVnode = vm._vnode
+  if (!prevVnode) {
+     // initial render
+    vm.$el = vm.__patch__(vm.$el, vnode, hydrating, false /* removeOnly */)
+  } else {
+    // updates
+    vm.$el = vm.__patch__(prevVnode, vnode)
+  }
+  // ...
+}
+```
+
+组件更新的过程，会执行 `vm.$el = vm.__patch__(prevVnode, vnode)`，它仍然会调用 `patch` 函数，在 `core/vdom/patch.js` 中定义：
+
+```js
+export function createPatchFunction (backend) {
+  return function patch (oldVnode, vnode, hydrating, removeOnly) {
+    if (isUndef(vnode)) {
+      if (isDef(oldVnode)) invokeDestroyHook(oldVnode)
+      return
+    }
+
+    let isInitialPatch = false
+    const insertedVnodeQueue = []
+    if (isUndef(oldVnode)) {
+      isInitialPatch = true
+      createElm(vnode, insertedVnodeQueue)
+    } else {
+      // 判断组件 与 sameVnode
+      const isRealElement = isDef(oldVnode.nodeType)
+      if (!isRealElement && sameVnode(oldVnode, vnode)) {
+        patchVnode(oldVnode, vnode, insertedVnodeQueue, null, null, removeOnly)
+      } else { 
+        // ......
+      }
+  }
+}
+```
+
+这里执行 `patch` 的逻辑和首次渲染是不一样的，因为 `oldVnode` 不为空，并且它和 `vnode` 都是 VNode 类型，接下来会通过 `sameVNode(oldVnode, vnode)` 判断它们是否是相同的 VNode 来决定走不同的更新逻辑：
+
+```js
+function sameVnode (a, b) {
+  return (
+    a.key === b.key && (
+      (
+        a.tag === b.tag &&
+        a.isComment === b.isComment &&
+        isDef(a.data) === isDef(b.data) &&
+        sameInputType(a, b)
+      ) || (
+        isTrue(a.isAsyncPlaceholder) &&
+        a.asyncFactory === b.asyncFactory &&
+        isUndef(b.asyncFactory.error)
+      )
+    )
+  )
+```
+
+`sameVnode` 的逻辑非常简单，如果两个 `vnode` 的 `key` 不相等，则是不同的；否则继续判断对于同步组件，则判断 `isComment`、`data`、`input` 类型等是否相同，对于异步组件，则判断 `asyncFactory` 是否相同。
+
+所以根据新旧 `vnode` 是否为 `sameVnode`，会走到不同的更新逻辑，我们先来说一下不同的情况。
+
+## 新旧节点不同
+
+如果新旧 `vnode` 不同，那么更新的逻辑非常简单，它本质上是要替换已存在的节点，大致分为 3 步
+
+- 创建新节点
+
+```js
+const oldElm = oldVnode.elm
+const parentElm = nodeOps.parentNode(oldElm)
+// create new node
+createElm(
+  vnode,
+  insertedVnodeQueue,
+  oldElm._leaveCb ? null : parentElm,
+  nodeOps.nextSibling(oldElm)
+)
+```
+
+以当前旧节点为参考节点，创建新的节点，并插入到 DOM 中，`createElm` 的逻辑我们之前分析过。
+
+- 更新父的占位符节点
+
+```js
+  if (isDef(vnode.parent)) {
+    let ancestor = vnode.parent
+    const patchable = isPatchable(vnode)
+    while (ancestor) {
+      for (let i = 0; i < cbs.destroy.length; ++i) {
+        cbs.destroy[i](ancestor)
+      }
+      ancestor.elm = vnode.elm
+      if (patchable) {
+        for (let i = 0; i < cbs.create.length; ++i) {
+          cbs.create[i](emptyNode, ancestor)
+        }
+        
+        const insert = ancestor.data.hook.insert
+        if (insert.merged) {
+          for (let i = 1; i < insert.fns.length; i++) {
+            insert.fns[i]()
+          }
+        }
+      } else {
+        registerRef(ancestor)
+      }
+      ancestor = ancestor.parent
+    }
+  }
+```
+
+我们只关注主要逻辑即可，找到当前 `vnode` 的父的占位符节点，先执行各个 `module` 的 `destroy` 的钩子函数，如果当前占位符是一个可挂载的节点，则执行 `module` 的 `create` 钩子函数。对于这些钩子函数的作用，在之后的章节会详细介绍。
+
+- 删除旧节点
+
+```js
+// destroy old node
+if (isDef(parentElm)) {
+  removeVnodes(parentElm, [oldVnode], 0, 0)
+} else if (isDef(oldVnode.tag)) {
+  invokeDestroyHook(oldVnode)
+}
+```
+
+把 `oldVnode` 从当前 DOM 树中删除，如果父节点存在，则执行 `removeVnodes` 方法：
+
+```js
+  function removeVnodes (vnodes, startIdx, endIdx) {
+    for (; startIdx <= endIdx; ++startIdx) {
+      const ch = vnodes[startIdx]
+      if (isDef(ch)) {
+        if (isDef(ch.tag)) {
+          removeAndInvokeRemoveHook(ch)
+          invokeDestroyHook(ch)
+        } else {
+          removeNode(ch.elm)
+        }
+      }
+    }
+  }
+  function removeAndInvokeRemoveHook (vnode, rm) {
+    if (isDef(rm) || isDef(vnode.data)) {
+      let i
+      const listeners = cbs.remove.length + 1
+      if (isDef(rm)) {
+        rm.listeners += listeners
+      } else {
+        rm = createRmCb(vnode.elm, listeners)
+      }
+      if (isDef(i = vnode.componentInstance) && isDef(i = i._vnode) && isDef(i.data)) {
+        removeAndInvokeRemoveHook(i, rm)
+      }
+      for (i = 0; i < cbs.remove.length; ++i) {
+        cbs.remove[i](vnode, rm)
+      }
+      if (isDef(i = vnode.data.hook) && isDef(i = i.remove)) {
+        i(vnode, rm)
+      } else {
+        rm()
+      }
+    } else {
+      removeNode(vnode.elm)
+    }
+  }
+```
+
+删除节点逻辑很简单，就是遍历待删除的 `vnodes` 做删除，其中 `removeAndInvokeRemoveHook` 的作用是从 DOM 中移除节点并执行 `module` 的 `remove` 钩子函数，并对它的子节点递归调用 `removeAndInvokeRemoveHook` 函数；`invokeDestroyHook` 是执行 `module` 的 `destory` 钩子函数以及 `vnode` 的 `destory` 钩子函数，并对它的子 `vnode` 递归调用 `invokeDestroyHook` 函数；`removeNode` 就是调用平台的 DOM API 去把真正的 DOM 节点移除。
+
+在之前介绍组件生命周期的时候提到 `beforeDestroy & destroyed` 这两个生命周期钩子函数，它们就是在执行 `invokeDestroyHook` 过程中，执行了 `vnode` 的 `destory` 钩子函数，它的定义在 `src/core/vdom/create-component.js` 中：
+
+```js
+const componentVNodeHooks = {
+  destroy (vnode: MountedComponentVNode) {
+    const { componentInstance } = vnode
+    if (!componentInstance._isDestroyed) {
+      if (!vnode.data.keepAlive) {
+        componentInstance.$destroy()
+      } else {
+        deactivateChildComponent(componentInstance, true /* direct */)
+      }
+    }
+  }
+}
+```
+
+当组件并不是 `keepAlive` 的时候，会执行 `componentInstance.$destroy()` 方法，然后就会执行 `beforeDestroy & destroyed` 两个钩子函数。
+
+## 新旧节点相同
+
+对于新旧节点不同的情况，这种创建新节点 -> 更新占位符节点 -> 删除旧节点的逻辑是很容易理解的。还有一种组件 `vnode` 的更新情况是新旧节点相同，它会调用 `patchVNode` 方法，它的定义在 `src/core/vdom/patch.js` 中：

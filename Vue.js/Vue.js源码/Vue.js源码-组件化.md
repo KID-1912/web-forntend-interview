@@ -449,7 +449,9 @@ Vue.prototype._render = function (): VNode {
 
 这里的 `_parentVnode` 就是当前组件的父 VNode，而 `render` 函数生成的 `vnode` 当前组件的渲染 `vnode`，`vnode` 的 `parent` 指向了 `_parentVnode`，也就是 `vm.$vnode`，它们是一种父子的关系。
 
-我们知道在执行完 `vm._render` 生成 VNode 后，接下来就要执行 `vm._update` 去渲染 VNode 了。来看一下组件渲染的过程中有哪些需要注意的，`vm._update` 的定义在 `core/instance/lifecycle.js` 中：
+我们知道在执行完 `vm._render` 生成 VNode 后，接下来就要执行 `vm._update` 去渲染 VNode 了。（App实例render =》 创建组件vnode =》App的update =》组件init mount => 组件render =》 组件_update =》 创建子组件vnode =》......）
+
+来看一下组件渲染的过程中有哪些需要注意的，`vm._update` 的定义在 `core/instance/lifecycle.js` 中：
 
 ```js
 export let activeInstance: any = null
@@ -820,6 +822,7 @@ export function initAssetRegisters (Vue: GlobalAPI) {
           definition = this.options._base.extend(definition)
         }
         // ......
+        this.options[type + 's'][id] = definition
         return definition
       }
     }

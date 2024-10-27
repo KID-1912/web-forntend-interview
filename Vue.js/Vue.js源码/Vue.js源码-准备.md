@@ -119,7 +119,7 @@ import { shouldDecodeNewlines, shouldDecodeNewlinesForHref } from './util/compat
 注意到 web 应用入口文件有代码 `import Vue from './runtime/index'`，从该文件引入Vue类；
 
 ```js
-// platforms/web/entry-runtime-with-compiler.js
+// platforms/web/runtime/index.js
 import Vue from 'core/index'
 import config from 'core/config'
 import { extend, noop } from 'shared/util'

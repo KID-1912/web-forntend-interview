@@ -4,7 +4,7 @@
 
 响应式，我倾向于先简化描述为**对数据修改作出响应**的原理；
 
-Vue2使用defineProperty设置data的set,get实现对数据劫持，有了数据劫持，使vue能够在mounted生命周期也就是挂载时，因为这个过程会读取数据，完成【依赖收集】，然后在数据修改时作出【响应处理】；
+Vue2使用defineProperty设置data的set,get实现对数据劫持，有了数据劫持，使vue挂载过程中的render方法读取数据，完成【依赖收集】，然后在数据修改时作出【响应处理】；
 
 这些【依赖收集】和【响应式】的逻辑，都在数据劫持时注入了，在数据被读取和修改时自动执行，所谓的响应式对象；
 
@@ -12,7 +12,7 @@ Vue2使用defineProperty设置data的set,get实现对数据劫持，有了数据
 
 1. 初始化和调用挂载
 
-2. 编译template和挂载，其中挂载时依赖收集
+2. 编译template和挂载，其中挂载时完成依赖收集
 
 3. 解析虚拟DOM替换真实DOM，完成挂载
 
@@ -46,4 +46,19 @@ Vue2使用defineProperty设置data的set,get实现对数据劫持，有了数据
 
 **beforeDestory**：清除watcher监听，子组件，事件监听器
 
-# 编译过程
+computed和watch有什么区别？什么情况用computed?
+computed源码实际内部就是基于watcher，这是由响应式原理决定的；但是是特殊的computed watcher；什么情况用computed，答案是当你需要定义某个值，他不是直接被访问而是基于其它值计算出来的；此时使用vue computed，vue会在最合适的时候去计算值；
+
+你也可以使用watch实现计算属性的需求，但是会很难受；1. 没有自动收集依赖；2. 不会频繁执行计算求值，且仅最终值改变时才会渲染更新，这种缓存的特性使他性能更好
+
+原理：惰性求值；
+
+为什么要设置key，什么情况设置key
+
+computed,watch,created执行顺序
+
+源码概要编写
+
+vue3 reactive 编写
+
+先子后父的根本原因

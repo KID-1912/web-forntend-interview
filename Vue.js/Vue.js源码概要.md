@@ -66,7 +66,7 @@ this._init(options) // 入参 options选项
 
 - **callHook(vm, 'beforeMount')** beforeMount钩子
 
-- **updateComponent**：组件更新方法 ，`vm._render `方法生成虚拟 Node，然后调用` vm._update` 更新 DOM
+- **updateComponent**：组件更新方法 ，`vm._render` 方法生成虚拟 Node，然后调用` vm._update` 更新 DOM
 
 - **new Watcher()**：创建渲染 Watcher，传入**updateComponent**，执行一次组件更新并监测数据变化
 
@@ -279,5 +279,17 @@ createWatcher 方法调用 Vue.prototype.$watch，内部 `new Watcher(vm, 监听
 第二种情况：对象类型的 `prop` 内部属性的变化；由于子组件的渲染过程中，访问过这个对象 `prop`，那么父组件依赖收集包含子组件渲染 watcher，prop对象被修改后通知子组件重新渲染。
 
 ## v-model双向绑定
+
+双向绑定即数据驱动 DOM 外， DOM 的变化也能反过来影响数据，一个双向关系，前者是基于vue数据驱动实现（render vnode + update patch）且响应式原理，后者通过事件；
+
+在 Vue 中，我们可以通过 `v-model` 来实现双向绑定，可以作用在普通表单元素上，又可以作用在组件上，它其实是一个语法糖。
+
+**实现**
+
+v-model指令，在编译的parse阶段，执行model函数调用处理：根据 AST 元素节点的不同情况去执行不同的逻辑；
+
+指令作用在元素dom元素，比如input上，则在 `input` 上动态绑定了 `value`（input标签的元素value属性），又给 `input` 上绑定了 `input` 事件，通过修改 AST 添加prop和事件处理实现；
+
+同理指令作用在组件上，只不过基于Vue 的父子组件通讯实现，对子组件通过 `prop` 把value传递到子组件，子组件修改了数据后把改变通过 `$emit` 事件的方式通知父组件；
 
 ## keep-alive

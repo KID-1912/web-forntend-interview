@@ -46,7 +46,9 @@
 
 Get参数通过URL传递，Post则在request body，这导致有以下区别：
 
-- Get参数有长度限制（浏览器限制url长度），Post没有
+- Get参数有长度限制（浏览器限制url长
+
+- 度），Post没有
 
 - Post相对Get安全性高一点，因为Get参数暴露在URL上
 
@@ -142,6 +144,6 @@ HTTP/2 中引入了新的编码机制，所有传输的数据都会被分割，�
 
 ## HTTP3
 
-HTTP2 **多路复用** 的TCP等待重传问题；基于 UDP 协议的 QUIC 协议，并且使用在了 HTTP/3 上，
+HTTP2 **多路复用** 的TCP等待重传问题；基于 UDP 协议的 QUIC 协议，并且使用在了 HTTP/3 上；
 
 

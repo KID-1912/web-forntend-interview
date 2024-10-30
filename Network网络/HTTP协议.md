@@ -54,7 +54,7 @@ Get参数通过URL传递，Post则在request body，这导致有以下区别：
 
 - Get只能使用URL编码，Post支持多种编码格式（URL，JSON）
 
-- Get请求会被历史记录保存，回退时会重发；Post不会
+- Get请求会被历史记录保存，回退时会重发，受缓存机制控制；Post不会
 
 总结：Get、Post只是Http规定的标准，语义区分应用，本质都是基于TCP的Http请求；
 
@@ -145,5 +145,3 @@ HTTP/2 中引入了新的编码机制，所有传输的数据都会被分割，�
 ## HTTP3
 
 HTTP2 **多路复用** 的TCP等待重传问题；基于 UDP 协议的 QUIC 协议，并且使用在了 HTTP/3 上；
-
-

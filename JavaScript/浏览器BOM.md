@@ -136,8 +136,46 @@ self.addEventListener('fetch', e => {
     })
   )
 })
-
-
 ```
 
+## 缓存机制
 
+**缓存位置**
+
+Service Worker、Memory Cache、Disk Cache、Push Cache
+
+**缓存策略**
+
+**强缓存**和**协商缓存**，并且缓存策略都是通过设置 HTTP Header 来实现的。
+
+### 强缓存
+
+相关header字段：`Expires`  `Cache-Control`
+
+强缓存表示在缓存期间不需要请求，`state code` 为 200
+
+**Expires**
+
+`Expires` 是 HTTP/1 的产物，表示资源会在 `Wed, 22 Oct 2018 08:41:00 GMT` 后过期，需要再次请求。并且 `Expires` **受限于本地时间**，如果修改了本地时间，可能会造成缓存失效。
+
+**Cache-control**
+
+`Cache-Control` 出现于 HTTP/1.1，**优先级高于 `Expires`** 。
+
+`Cache-control: max-age=30`，该属性值表示资源会在 30 秒后过期，需要再次请求。
+
+`Cache-Control` **可以在请求头或者响应头中设置**，并且可以组合使用多种指令
+
+![](https://raw.githubusercontent.com/KID-1912/Github-PicGo-Images/master/2024/10/30/20241030122105.webp)
+
+
+
+使用 `Cache-Control` HTTP 头部
+
+使用 Service Workers拦截请求
+
+请求的 URL 中添加查询参数（例如时间戳或版本号）
+
+## 协商缓存
+
+相关Header字段：`Last-Modified` 和 `ETag`

@@ -60,7 +60,7 @@ mc.addEventListener('message', event => {
 
 数据存储大小：4K
 
-与服务端通信：每次都会携带在 header 中，对于请求性能影响
+与服务端通信：每次都会携带在 header 中，对于请求性能影响；
 
 **localStorage**
 
@@ -74,11 +74,17 @@ mc.addEventListener('message', event => {
 
 数据存储大小：5M
 
+**精细度**
+
+Cookie精细度不如其它存储，导致会有大量不可预知情况，如：
+
+同域多页面共用问题、跨域Cookie收集
+
 ### Cookie
 
 **第三方 Cookie**
 
-第三方网站引导发出的 Cookie，就称为第三方 Cookie。它除了用于 CSRF 攻击，还可以用于用户追踪；比如，Facebook 在第三方网站插入一张看不见的图片。
+第三方网站引导发出的跨域 Cookie，就称为第三方 Cookie。它除了用于 CSRF 攻击，还可以用于用户追踪；比如，Facebook 在第三方网站插入一张看不见的图片。
 
 **cookie其它属性**
 
@@ -91,15 +97,20 @@ mc.addEventListener('message', event => {
 
 ## Service Worker
 
-运行在浏览器背后的**独立线程**，一般可以用来实现缓存功能。使用 Service Worker的话，传输协议必须为 **HTTPS**。因为 Service Worker 中涉及到请求拦截，所以必须使用 HTTPS 协议来保障安全。
+**特性**
 
-Service Worker 实现缓存功能一般分为三个步骤：
+- **独立性**：Service Worker 在主线程之外运行，独立于网页的生命周期。这意味着即使用户关闭所有相关页面（甚至浏览器），Service Worker 仍然可以保持运行。
+- **生命周期管理**：Service Worker 有明确的生命周期，包括安装、激活和废弃状态。每个阶段都有相应的事件可以监听。
+- **事件驱动**：Service Worker 使用事件驱动模型，响应特定的事件（如 `fetch`、`push` 和 `sync`）。
+- **缓存 API**：Service Worker 内置的 Cache API 允许缓存请求和响应。
 
-首先需要先注册 Service Worker，
+**HTTPS强制**：因为 Service Worker 中涉及到请求拦截，所以必须使用 HTTPS 协议来保障安全；
 
-然后监听到 `install` 事件以后就可以缓存需要的文件，那么在下次用户访问的时候就可以通过拦截请求的方式查询是否存在缓存，
+**缓存实现**
 
-存在缓存的话就可以直接读取缓存文件，否则就去请求数据。以下是这个步骤的实现：
+Service Worker 运行在浏览器背后的**独立线程**，一般可以用来实现缓存功能。分为三个步骤：
+
+1. 注册 Service Worker
 
 ```js
 // index.js
@@ -113,11 +124,17 @@ if (navigator.serviceWorker) {
       console.log('servcie worker 注册失败')
     })
 }
-// sw.js
+```
+
+2. 监听到 `install` 事件以后就可以缓存需要的文件，那么在下次用户访问的时候就可以通过拦截请求的方式查询是否存在缓存；存在缓存的话就可以直接读取缓存文件，否则就去请求数据。以下是这个步骤的实现：
+
+```js
+// sw.js（指向同域可访问js资源）
 // 监听 `install` 事件，回调中缓存所需文件
 self.addEventListener('install', e => {
   e.waitUntil( 
     // 返回与当前上下文相关联的 CacheStorage 对象
+    // 自定义一个 ‘my-cache’ 缓存名称，用于存放缓存资源
     caches.open('my-cache').then(function(cache) {
       return cache.addAll(['./index.html', './index.js'])
     })
@@ -138,7 +155,13 @@ self.addEventListener('fetch', e => {
 })
 ```
 
+## Web Worker
+
 ## 缓存机制
+
+**缓存规则**
+
+浏览器每次拿到返回的请求结果都会将该结果和缓存标识存入浏览器缓存中；特别是未命中任何缓存时；
 
 **缓存位置**
 
@@ -146,36 +169,74 @@ Service Worker、Memory Cache、Disk Cache、Push Cache
 
 **缓存策略**
 
-**强缓存**和**协商缓存**，并且缓存策略都是通过设置 HTTP Header 来实现的。
+根据读取缓存规则不同，区分**强缓存**和**协商缓存**
+
+**强缓存**：浏览器每次发起请求，都会先在浏览器缓存中查找该请求的结果以及缓存标识，尝试复用；
+
+**协商缓存**：强制缓存失效后，浏览器携带缓存标识向服务器发起请求，由服务器根据缓存标识决定是否使用缓存的过程（协商）；
 
 ### 强缓存
 
-相关header字段：`Expires`  `Cache-Control`
+**header字段**：`Expires`  `Cache-Control`
 
-强缓存表示在缓存期间不需要请求，`state code` 为 200
+**`state code`**：200，缓存期间不需要请求
 
 **Expires**
 
-`Expires` 是 HTTP/1 的产物，表示资源会在 `Wed, 22 Oct 2018 08:41:00 GMT` 后过期，需要再次请求。并且 `Expires` **受限于本地时间**，如果修改了本地时间，可能会造成缓存失效。
+HTTP/1.0控制网页缓存的字段，其值为服务器返回该请求结果缓存的到期时间，即再次发起该请求时，如果客户端的时间小于Expires的值时，直接使用缓存结果。
 
-**Cache-control**
+**注**：现在浏览器最低是HTTP/1.1，Expire已经被Cache-Control替代，原因在于Expires控制缓存的原理是使用客户端的时间与服务端返回的时间做对比，那么如果客户端与服务端的时间因为某些原因（例如时区不同；手动修改）发生误差，那么强制缓存则会直接失效；
+
+**Cache-Control**
 
 `Cache-Control` 出现于 HTTP/1.1，**优先级高于 `Expires`** 。
 
-`Cache-control: max-age=30`，该属性值表示资源会在 30 秒后过期，需要再次请求。
+取值包括：
 
-`Cache-Control` **可以在请求头或者响应头中设置**，并且可以组合使用多种指令
+- `public`：所有内容都将被缓存（客户端和代理服务器都可缓存）
 
-![](https://raw.githubusercontent.com/KID-1912/Github-PicGo-Images/master/2024/10/30/20241030122105.webp)
+- `private`：所有内容只有客户端可以缓存，Cache-Control的默认取值
 
+- `no-cache`：客户端缓存内容，但是是否使用缓存则需要经过协商缓存来验证决定
 
+- `no-store`：所有内容都不会被缓存，即不使用强制缓存，也不使用协商缓存
 
-使用 `Cache-Control` HTTP 头部
+- `max-age=`xxx (xxx is numeric)：缓存内容将在xxx秒后失效
 
-使用 Service Workers拦截请求
+### 协商缓存
 
-请求的 URL 中添加查询参数（例如时间戳或版本号）
+**header字段**：`Last-Modified/If-Modified-Since` 和 `ETag/If-None-Match`
 
-## 协商缓存
+**`state code`**：304，从缓存读取
 
-相关Header字段：`Last-Modified` 和 `ETag`
+**`Last-Modified / If-Modified-Since`**
+
+Last-Modified：服务器响应请求时，返回该资源文件在服务器最后被修改的时间
+
+If-Modified-Since：客户端再次发起该请求时，携带上次请求返回的Last-Modified值，通过此字段值告诉服务器该资源上次请求返回的最后被修改时间。
+
+**协商处理**
+
+服务器收到该请求，发现请求头含有If-Modified-Since字段，则会根据If-Modified-Since的字段值与该资源在服务器的最后被修改时间做对比，若服务器的资源最后被修改时间大于If-Modified-Since的字段值，则重新返回资源，状态码为200；否则则返回304，代表资源无更新，可继续使用缓存文件，
+
+**Etag / If-None-Match**
+
+Etag：服务器响应请求时，返回当前资源文件的一个唯一标识(由服务器生成)
+
+If-None-Match：客户端再次发起该请求时，携带上次请求返回的唯一标识Etag值，通过此字段值告诉服务器该资源上次请求返回的唯一标识值。
+
+**协商处理**
+
+服务器收到该请求后，发现该请求头中含有If-None-Match，则会根据If-None-Match的字段值与该资源在服务器的Etag值做对比，一致则返回304，代表资源无更新，继续使用缓存文件；不一致则重新返回资源文件，状态码为200，
+
+注：`Etag/If-None-Match` 优先级高于 `Last-Modified/If-Modified-Since`，前者通过协商资源唯一标识，后者协商修改实现；
+
+### 使用策略
+
+前端影响浏览器缓存策略方案：
+
+- 设置发起请求缓存标识，如 `Cache-Control: no-store/no-cache` 或 `max-age=0` 强制过期
+
+- 使用 Service Workers拦截请求
+
+- 请求的 URL 中添加查询参数（例如时间戳或版本号）

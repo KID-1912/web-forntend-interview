@@ -28,5 +28,3 @@ fn.myCall();
 console.log("=============================");
 // Test: 指定this指向值为一个非对象类型
 fn.myCall("a string");
-
-

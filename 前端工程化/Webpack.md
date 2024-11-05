@@ -82,7 +82,7 @@ loader只是一个普通的funciton，他会传入匹配到的文件内容(Strin
 
 **loader实战**
 
-- 使用 `loader-utils` 拿到用户自定义的loaderr配置
+- 使用 `loader-utils` 拿到用户自定义的loader配置
 
 - `this.callback` 方法导出内容
 
@@ -109,5 +109,3 @@ loader只是一个普通的funciton，他会传入匹配到的文件内容(Strin
 
 - **优化后的文件大小和打包性能** 
   Webpack 5 对资源管理和生成的 bundle 进行了优化，通过更高效的算法和资源处理方式，打包体积进一步减小，性能显著提升。
-
-- 

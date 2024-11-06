@@ -9,6 +9,7 @@
   "author": "KID-1912",
   "license": "ISC",
   "devDependencies": {
+    "@types/vue-router": "^2.0.0",
     "vue": "^2.6.11",
     "vue-router": "^3.6.5"
   }

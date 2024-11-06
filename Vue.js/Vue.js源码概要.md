@@ -162,7 +162,7 @@ Vue 的实例化阶段合并 `options` 的逻辑，把 `components` 合并�
 
 vue不会每次数据改变立即触发 `watcher` 的回调，而是把这些 `watcher` 先添加到一个队列里，然后在 `nextTick` 后执行；
 
-**nextTick**
+#### nextTick
 
 与 JS运行机制相关，目的是在下一次主线程执行完成时，添加处理；
 
@@ -266,7 +266,7 @@ createWatcher 方法调用 Vue.prototype.$watch，内部 `new Watcher(vm, 监听
 
 **响应式**
 
-通过 `defineReactive` 方法把 `prop` 值变成响应式，子组件render手机依赖，prop值修改后触发渲染。
+通过 `defineReactive` 方法把 `prop` 值变成响应式，子组件render收集依赖，prop值修改后触发渲染。
 
 **props更新**
 
@@ -293,3 +293,17 @@ v-model指令，在编译的parse阶段，执行model函数调用处理：根据
 同理指令作用在组件上，只不过基于Vue 的父子组件通讯实现，对子组件通过 `prop` 把value传递到子组件，子组件修改了数据后把改变通过 `$emit` 事件的方式通知父组件；
 
 ## keep-alive
+
+原理：缓存虚拟节点，在patch时跳过缓存的节点，激活时触发生命周期
+
+## VueRouter
+
+router路由实例、route路由、matcher匹配器（match）
+
+- 跳转时pushState/pushHash，更改url
+
+- 触发监听hashchange/popstate
+
+- 调用路径切换，watcher订阅依赖，重新渲染router-view
+
+# Vuex

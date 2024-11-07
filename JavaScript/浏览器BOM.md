@@ -52,6 +52,8 @@ mc.addEventListener('message', event => {
 })
 ```
 
+**正相代理**
+
 ## web存储
 
 **cookie**

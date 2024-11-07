@@ -296,7 +296,7 @@ v-model指令，在编译的parse阶段，执行model函数调用处理：根据
 
 原理：缓存虚拟节点，在patch时跳过缓存的节点，激活时触发生命周期
 
-## VueRouter
+# VueRouter
 
 router路由实例、route路由、matcher匹配器（match）
 

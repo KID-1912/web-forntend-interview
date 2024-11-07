@@ -28,7 +28,7 @@ isNaN、isArray
 
 ## 类型转换
 
-仅支持一下类型转换：
+仅支持以下类型转换：
 
 - 转换为布尔值
 - 转换为数字
@@ -102,7 +102,7 @@ Object 的  `key`  只能为  `string`  或者  `symbol`  类型；
 
 Map 的  `key`  接受任意类型；
 
-WeakMap 的  `key`  只能为  `object`  类型；
+WeakMap 的  `key`  只能为  `object` 或者  `symbol`  类型；
 
 # 异步编程
 

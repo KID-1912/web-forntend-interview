@@ -36,9 +36,11 @@ isNaN、isArray
 
 # this 指向
 
+window/global，调用对象，绑定的值
+
 # 闭包
 
-定义：**假如一个函数能访问外部的变量，那么就形成了一个闭包，而不是一定要返回一个函数**。
+定义：**假如一个函数能访问外部的变量，且函数能被调用（未销毁），那么就形成了一个闭包，而不是一定要返回一个函数**。
 
 ## 深浅拷贝
 
@@ -100,9 +102,9 @@ Vue3.0 要使用  `Proxy`  替换原本的 API 原因在于  `Proxy`  无需
 
 Object 的  `key`  只能为  `string`  或者  `symbol`  类型；
 
-Map 的  `key`  接受任意类型；
+Map 的  `key`  有序且接受任意类型；
 
-WeakMap 的  `key`  只能为  `object` 或者  `symbol`  类型；
+WeakMap 的  `key`  只能为 `object` 或者  `symbol`  类型；
 
 # 异步编程
 
@@ -181,8 +183,8 @@ then 函数返回一个新 Promise，若传入的函数并没有返回值则将 
 
 ## 微任务
 
-微任务包括 `process.nextTick` 、`queueMicrotask`（一个 Web API，用于将一个回调函数加入微任务队列）、`promise.then` 、`MutationObserver`，其中 `process.nextTick` 为 Node 独有。
+微任务包括 `queueMicrotask`（一个 Web API，用于将一个回调函数加入微任务队列）、`promise.then` 、`MutationObserver`、 `process.nextTick` ，其中 `process.nextTick` 为 Node 独有。
 
 ## 宏任务
 
-宏任务包括 `script` 、 `setTimeout` 、`setInterval` 、`setImmediate` 、`I/O` 及 `UI rendering`。
+宏任务包括 `script` 、 `setTimeout` 、`setInterval` 、`setImmediate` 、事件处理、异步请求、`I/O` 及 `UI rendering`。

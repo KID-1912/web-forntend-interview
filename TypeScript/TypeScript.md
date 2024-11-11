@@ -59,6 +59,7 @@ modules 输出模块规范
 target 编译目标
 types 引入的类型声明文件
 path 路径别名
+lib 内置类型
 
 **输入文件**
 
@@ -67,8 +68,3 @@ include
 ## typescript lint
 
 @typescript-eslint typescript和eslint的结合
-
-## 面试题目
-
-
-

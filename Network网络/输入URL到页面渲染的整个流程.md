@@ -22,7 +22,7 @@
 
 **CSS和图片等资源是并行下载串行渲染**的，而**js默认是串行下载，串行执行**的。
 
-HTML DOM树、CSS CSSDOM树、Scirpt 阻塞并解析执行
+HTML DOM树、CSS CSSOM树、Scirpt 阻塞并解析执行
 
 **页面渲染**：绘制页面 Render渲染树，先布局，后GPU合成图层渲染
 

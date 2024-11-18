@@ -59,8 +59,12 @@ const middleware = applyMiddleware(logMiddleware);
 
 ### redux 实践
 
+<<<<<<< HEAD
 **编写 reducer
 **
+=======
+**编写reducer**
+>>>>>>> 24b4fe7 (feat:redux4使用)
 
 ```js
 /* number Reducer */
@@ -174,3 +178,17 @@ function Index() {
   );
 }
 ```
+<<<<<<< HEAD
+=======
+
+单纯的redux无法实现：
+
+- 必须对每一个需要状态的组件都用 subscribe / unSubscribe 来进行订阅
+- 必须依赖整个Store，Store下部分更新会使所有依赖的组件更新，而不是仅依赖部分属性的组件更新
+
+## React-redux
+
+provider
+
+connect
+>>>>>>> 24b4fe7 (feat:redux4使用)

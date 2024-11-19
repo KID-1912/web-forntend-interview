@@ -59,41 +59,7 @@ const middleware = applyMiddleware(logMiddleware);
 
 ### redux 实践
 
-<<<<<<< HEAD
-**编写 reducer
-**
-=======
-**编写reducer**
->>>>>>> 24b4fe7 (feat:redux4使用)
-
-```js
-/* number Reducer */
-function numberReducer(state = 1, action) {
-  switch (action.type) {
-    case "ADD":
-      return state + 1;
-    case "DEL":
-      return state - 1;
-    default:
-      return state;
-  }
-}
-/* 用户信息reducer */
-function InfoReducer(state = {}, action) {
-  const { payload = {} } = action;
-  switch (action.type) {
-    case "SET":
-      return {
-        ...state,
-        ...payload,
-      };
-    default:
-      return state;
-  }
-}
-```
-
-- 编写了两个 reducer ，一个管理变量 number ，一个保存信息 info 。
+**编写 reducer**
 
 **注册中间件**
 
@@ -118,9 +84,7 @@ function logMiddleware() {
 **生成 Store**
 
 ```js
-/* 注册中间件  */
 const rootMiddleware = applyMiddleware(logMiddleware);
-/* 注册reducer */
 const rootReducer = combineReducers({
   number: numberReducer,
   info: InfoReducer,
@@ -133,7 +97,7 @@ const Store = createStore(
 );
 ```
 
-**使用 redux**
+**使用 redux@4.2.1**
 
 ```jsx
 function Index() {
@@ -178,17 +142,135 @@ function Index() {
   );
 }
 ```
-<<<<<<< HEAD
-=======
 
-单纯的redux无法实现：
+# react-redux
+
+单纯的 redux 无法实现：
 
 - 必须对每一个需要状态的组件都用 subscribe / unSubscribe 来进行订阅
-- 必须依赖整个Store，Store下部分更新会使所有依赖的组件更新，而不是仅依赖部分属性的组件更新
+- 必须依赖整个 Store，Store 下部分更新会使所有依赖的组件更新，而不是仅依赖部分属性的组件更新
 
 ## React-redux
 
-provider
+```jsx
+// Store.ts
+import { combineReducers, createStore } from "redux";
 
-connect
->>>>>>> 24b4fe7 (feat:redux4使用)
+export interface NumberStoreAction {
+  type: "add" | "remove";
+  value: number;
+}
+
+// **编写 reducer**
+function numberProducer(state: number = 0, action: NumberStoreAction) {
+  if (action.type === "add") return state + action.value;
+  if (action.type === "remove") return state - action.value;
+  return state;
+}
+const rootReducer = combineReducers({ number: numberProducer });
+export type RootState = ReturnType<typeof rootReducer>;
+
+// **初始 state**
+const initStates = { number: 0 };
+
+// **生成 Store**
+export const Store = createStore(rootReducer, initStates);
+```
+
+### provider
+
+全局注入 redux 中的 store，使用者需要把 Provider 注册到根部组件中
+
+```tsx
+// App.tsx
+import { Provider as StoreProvider } from "react-redux";
+import { Store } from "@/store/Store.ts";
+import NumberPanel from "./NumberPanel.tsx";
+import NumberInput from "./NumberInput.tsx";
+
+export default function App(): React.ReactNode {
+  return (
+    <StoreProvider store={Store}>
+      <NumberPanel></NumberPanel>
+      <NumberInput></NumberInput>
+    </StoreProvider>
+  );
+}
+```
+
+### connect
+
+React-Redux 提供了一个高阶组件 connect，被 connect 包装后组件将获得如下功能：
+
+- 1 能够从 props 中获取改变 state 的方法 Store.dispatch 。
+- 2 如果 connect 有第一个参数，那么会将 redux state 中的数据，映射到当前组件的 props 中，子组件可以使用消费。
+
+**用法**：`function connect(mapStateToProps?, mapDispatchToProps?, mergeProps?, options?)`
+
+**mapStateToProps**
+
+组件依赖 redux 的 state，映射到业务组件的 props 中；订阅 store 的改变
+
+```tsx
+// NumberPanel.tsx
+import { connect } from "react-redux";
+import type { RootState } from "@/store/Store.ts";
+
+// 映射
+const mapStateToProps = (state: RootState) => ({ number: state.number });
+const NumberPanel: React.FC<{ number: number }> = (props) => {
+  const { number } = props;
+  return <div>{number}</div>;
+};
+
+export default connect(mapStateToProps)(NumberPanel);
+```
+
+**mapDispatchToProps**
+
+redux 中的 dispatch 方法，映射到业务组件的 props 中
+
+```tsx
+import { type NumberStoreAction, Store } from "@/store/Store.ts";
+import { type Dispatch } from "redux";
+import { connect } from "react-redux";
+import { MutableRefObject } from "react";
+
+// 映射
+const mapDispatchToProps = (dispatch: Dispatch) => ({
+  numberAdd: (value: NumberStoreAction["value"]) =>
+    dispatch({ type: "add", value }),
+  numberRemove: (value: NumberStoreAction["value"]) =>
+    dispatch({ type: "remove", value }),
+});
+
+type MapDispatchProps = ReturnType<typeof mapDispatchToProps>;
+
+const NumberInput: React.FC<MapDispatchProps> = (props) => {
+  const numberInputEle: MutableRefObject<HTMLInputElement | null> =
+    useRef(null);
+
+  const onChangeNumber = (type: NumberStoreAction["type"]) => {
+    const value = Number(numberInputEle.current!.value);
+    // Store.dispatch({ type, value }); 也可以直接调用Store.dispatch
+    type === "add" && props.numberAdd(value);
+    type === "remove" && props.numberRemove(value);
+  };
+
+  return (
+    <>
+      <input ref={numberInputEle} type="text" />
+      <button type="button" onClick={() => onChangeNumber("add")}>
+        增加
+      </button>
+      <button type="button" onClick={() => onChangeNumber("remove")}>
+        减少
+      </button>
+    </>
+  );
+};
+
+export default connect(undefined, mapDispatchToProps)(NumberInput);
+```
+
+## React-Redux 组件通信

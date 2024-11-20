@@ -34,5 +34,3 @@ composes：
 **style-components**
 
 # 高阶组件（HOC）
-
-

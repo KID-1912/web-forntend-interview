@@ -274,3 +274,134 @@ export default connect(undefined, mapDispatchToProps)(NumberInput);
 ```
 
 ## React-Redux 组件通信
+
+原理：一个组件依赖的状态，另一组件可以通过 `dispatch` 修改状态实现通信；
+
+## React-Redux 原理
+
+1. Provider 注入 Store
+- 1 通过 context 上下文来保存传递 Store 的，还有 subscription 。
+
+- 2 Provider 中的根订阅器 subscription，订阅来自 state 变化，另一方面通知对应的组件更新。
+2. Subscription 订阅器
+- 订阅器的核心，**层层订阅，上订下发**：根订阅器订阅了 Store 的变化，当 Store 变化时，通知所有的订阅者，订阅者再通知下一级订阅者（只更新依赖变化值的组件）。
+
+## 新版本 redux/React-redux
+
+```
+npm install @reduxjs/toolkit react-redux
+```
+
+**reducerSlice**
+
+```js
+// features/counter/counterSlice.js
+import { createSlice } from "@reduxjs/toolkit";
+
+export const counterSlice = createSlice({
+  name: "counter",
+  initialState: {
+    value: 0,
+  },
+  reducers: {
+    increment: (state) => {
+      state.value += 1;
+    },
+    decrement: (state) => {
+      state.value -= 1;
+    },
+    incrementByAmount: (state, action) => {
+      state.value += action.payload;
+    },
+  },
+});
+
+export const { increment, decrement, incrementByAmount } = counterSlice.actions;
+
+// 修改导出名称
+// export const { incremented: counterIncremented, decremented: counterDecremented } = counterSlice.actions;
+
+// 命名空间导出，防止命名冲突
+// export const counterActions = counterSlice.actions;
+
+export default counterSlice.reducer;
+```
+
+**configureStore**
+
+```tsx
+// store/index.js
+import { configureStore } from "@reduxjs/toolkit";
+import counterReducer from "../features/counter/counterSlice";
+
+export default const store = configureStore({
+  reducer: {
+    counter: counterReducer,
+  },
+});
+```
+
+**useSelector/useDispatch**
+
+```js
+import { useSelector, useDispatch } from "react-redux";
+import { decrement, increment } from "./counterSlice";
+
+export function Counter() {
+  const count = useSelector((state) => state.counter.value);
+  const dispatch = useDispatch();
+
+  return (
+    <div>
+      <div>
+        <button
+          aria-label="Increment value"
+          onClick={() => dispatch(counterActions.incremented())}
+        >
+          Increment
+        </button>
+        <span>{count}</span>
+        <button
+          aria-label="Decrement value"
+          onClick={() => dispatch(counterActions.decrement())}
+        >
+          Decrement
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+**异步 redux-thunk**
+
+新增异步 thunk 函数
+
+```js
+// reducer：counterSlice.js
+export const incrementAsync = () => async (dispatch) => {
+  dispatch(loadingStarted());
+  setTimeout(() => {
+    dispatch(incremented());
+    dispatch(loadingFinished());
+  }, 1000); // 模拟异步任务
+};
+```
+
+调用 异步 thunk 函数
+
+```js
+import { incrementAsync } from "./counterSlice";
+
+export function Counter() {
+  const dispatch = useDispatch();
+
+  return (
+    <div>
+      <button onClick={() => dispatch(incrementAsync())}>
+        Increment async
+      </button>
+    </div>
+  );
+}
+```

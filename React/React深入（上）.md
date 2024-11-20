@@ -356,7 +356,7 @@ useEffect 第一个参数 callback, 返回的 destory ， destory 作为下一�
 useLayoutEffect 和 useEffect 不同的地方是采用了同步执行，那么和useEffect有什么区别呢？
 
 - 首先 useLayoutEffect 是在 DOM 更新之后，浏览器绘制之前，这样可以方便修改 DOM，获取 DOM 信息，这样浏览器只会绘制一次，如果修改 DOM 布局放在 useEffect ，那 useEffect 执行是在浏览器绘制视图之后，接下来又改 DOM ，就可能会导致浏览器再次回流和重绘。而且由于两次绘制，视图上可能会造成闪现突兀的效果。
-  
+
 - useLayoutEffect callback 中代码执行会阻塞浏览器绘制。
 
 **一句话概括如何选择 useEffect 和 useLayoutEffect ：修改 DOM ，改变布局就用 useLayoutEffect ，其他情况就用 useEffect 。
@@ -604,17 +604,17 @@ Provider 模式下 context 有一个显著的特点，就是 **Provider 的 valu
 **如何阻止 Provider value 改变造成的 children （ demo 中的 Son ）不必要的渲染？**（如son以及他的子组件）
 
 - 利用 memo，pureComponent 对子组件 props 进行浅比较处理
-
+  
   ```jsx
   const Son = React.memo(()=> <ConsumerDemo />) 
-
+  
   <ThemeProvider value={ contextValue } >
     <Son /> // 避免更新
   </ThemeProvider>
   ```
 
 - React 本身对 React element 对象的缓存
-
+  
   ```jsx
   <ThemeProvider value={ contextValue } >
     { React.useMemo(()=>  <Son /> ,[]) }
@@ -637,7 +637,7 @@ context 与 props 和 react-redux 的对比？
 **答**： context解决了：
 
 - 解决了 props 需要每一层都手动添加 props 的缺陷。
-  
+
 - 解决了改变 value ，组件全部重新渲染的缺陷。
 
 react-redux 就是通过 Provider 模式把 redux 中的 store 注入到组件中的。
@@ -647,4 +647,3 @@ react-redux 就是通过 Provider 模式把 redux 中的 store 注入到组件�
 **嵌套Provider**
 
 **逐层传递Provider**
-

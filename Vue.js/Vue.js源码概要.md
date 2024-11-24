@@ -222,7 +222,7 @@ oldStartVnode、newStartVnode、oldEndVnode、newEndVnode
 
  `oldStartIdx`、`newStartIdx`、`oldEndIdx` 以及 `newEndIdx` 两两比对的过程，一共会出现 2*2=4 种情况，相等则patchNode；
 
-都不相等，则寻找旧节点列表中相同的key，符合sameVnode则移动纠结点，不符合即无法服用，创建新节点插入并向后移动；
+都不相等，则寻找旧节点列表中相同的key，符合sameVnode则移动旧节点，不符合即无法服用，创建新节点插入并向后移动；
 
 最后 `while` 循环结束完成靠拢：如果 `oldStartIdx > oldEndIdx` ，说明老节点比对完了，但是新节点还有多的，需要将新节点插入到真实 DOM 中去，调用 `addVnodes` 将这些节点插入即可。
 
@@ -238,7 +238,7 @@ oldStartVnode、newStartVnode、oldEndVnode、newEndVnode
 
 `new Watcher` 依赖收集时不会立即调用getter收集依赖，而是render首次访问时，收集内部依赖，渲染watcher订阅computed watcher变化（自动收集依赖，避免重复计算）；
 
-`computed watcher` 不会在依赖的数据发生变化时立即求值，而是会将自己标记为“脏”（`dirty = true`），在下次访问计算属性时，也就是渲染时， 才会通过调用` evaluate()` 来重新计算计算属性的值；
+`computed watcher` 不会在依赖的数据发生变化时立即求值，而是会将自己标记为“脏”（`dirty = true`），在下次访问计算属性时，也就是渲染时， 才会通过调用 `evaluate()` 来重新计算计算属性的值；
 
 **意义**：
 
@@ -304,6 +304,6 @@ router路由实例、route路由、matcher匹配器（match）
 
 - 触发监听hashchange/popstate
 
-- 调用路径切换，watcher订阅依赖，重新渲染router-view
+- 调用路径切换，watcher订阅了currentToute依赖，触发重新渲染router-view
 
 # Vuex

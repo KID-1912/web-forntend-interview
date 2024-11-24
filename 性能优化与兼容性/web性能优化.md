@@ -30,11 +30,11 @@
 
 **资源加载**
 
-- 传输量小：压缩代码（html/css/js）与图片，小图base64，雪碧图/SVG sprite/IconFont替代图片Icon，Gzip，TreeShaking，注意按需加载（异步组件动，路由懒加载，图片懒加载）
+- 传输量小：压缩代码（html/css/js）与图片，小图base64，雪碧图/SVG sprite/IconFont替代图片Icon，Gzip，TreeShaking，注意按需加载（异步组件，路由懒加载，图片懒加载）
 
 - 距离近：CDN（内容分发网络）
 
-- 并行传输不阻塞（效率高）：HTTP2.0
+- 并行传输不阻塞（效率高）：HTTP2.0，CSS前置
 
 - 资源复用（不必要的重复工作）：浏览器缓存策略，检查分包
 
@@ -42,7 +42,7 @@
 
 **页面渲染**
 
-- 动画流畅：使用CSS动画而非JS动画，注意GPU加速（transform，translateZ/translate3d，opacity）, JS动画使用requestAnimationFrame
+- 动画流畅：使用CSS动画而非JS动画，使用GPU加速（transform，translateZ/translate3d，opacity）, JS动画使用requestAnimationFrame
 
 - 交互流畅（滚动/移动/操作）:​DOM增删操作要少(虚拟长列表、DOM Diff)，防抖/节流，注意DOM计算（offsetTop）
 

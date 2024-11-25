@@ -35,7 +35,7 @@ JSONP
 
 CORS：服务端设置 `Access-Control-Allow-Origin` 就可以开启 CORS。 该属性表示哪些域名可以访问资源，如果设置通配符则表示所有网站都可以访问资源。
 
-document.domain：只能用于**二级域名相同**的情况下，比如 `a.test.com` 和 `b.test.com` 适用于该方式。只需要给页面添加 `document.domain = 'test.com'` 表示二级域名都相同就可以实现跨域
+document.domain：只能用于**二级域名相同**的情况下，比如 `a.test.com` 和 `b.test.com` 适用于该方式。只需要给页面添加 `document.domain = 'test.com'` 表示二级域名都相同就可以实现跨域（cookie的domain属性同理）
 
 postMessage：
 
@@ -52,7 +52,7 @@ mc.addEventListener('message', event => {
 })
 ```
 
-**正相代理**
+**正向代理**
 
 ## web存储
 
@@ -62,7 +62,7 @@ mc.addEventListener('message', event => {
 
 数据存储大小：4K
 
-与服务端通信：每次都会携带在 header 中，对于请求性能影响；
+与服务端通信：每次都会携带在 header 中，对于请求性能影响
 
 **localStorage**
 
@@ -76,11 +76,13 @@ mc.addEventListener('message', event => {
 
 数据存储大小：5M
 
-**精细度**
+**使用场景**
 
-Cookie精细度不如其它存储，导致会有大量不可预知情况，如：
+cookie：登录状态，会话标识相关（无需页面传递状态）
 
-同域多页面共用问题、跨域Cookie收集
+localStorage：长期存储，如用户信息，配置信息（主题、布局）等
+
+sessionStorage：跟随Tab标签存储数据（Tab标签页持久化存储）
 
 ### Cookie
 
@@ -167,7 +169,7 @@ self.addEventListener('fetch', e => {
 
 **缓存位置**
 
-Service Worker、Memory Cache、Disk Cache、Push Cache
+Service Worker、Memory Cache(内存缓存)、Disk Cache(磁盘缓存)、Push Cache
 
 **缓存策略**
 

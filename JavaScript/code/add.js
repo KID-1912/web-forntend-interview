@@ -14,9 +14,9 @@
 function add() {
   const sum = [...arguments].reduce((v, t) => v + t, 0);
 
-  const newAdd = add.bind(null, sum);
-  newAdd.toString = () => sum;
-  return newAdd;
+  const newAdd = add.bind(null, sum); // 柯里化，新函数都基于当前求和数
+  newAdd.toString = () => sum; //
+  return newAdd; // 1. 返回可调用的新函数
 }
 
 console.log(`${add(1, 3)(2)(6)}`);

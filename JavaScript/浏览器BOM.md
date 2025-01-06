@@ -181,6 +181,8 @@ Service Worker、Memory Cache(内存缓存)、Disk Cache(磁盘缓存)、Push Ca
 
 ### 强缓存
 
+
+
 **缓存头header字段**：`Expires`  `Cache-Control`
 
 **`state code`**：200，不发起真实请求
